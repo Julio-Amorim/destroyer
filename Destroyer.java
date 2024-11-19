@@ -19,11 +19,13 @@ public class Destroyer extends JPanel implements ActionListener, KeyListener {
     private JButton startButton; // botão para iniciar o jogo
     private JButton restartButton; // botão para reiniciar o jogo
     private ArrayList<Meteor> meteors;
+    private ArrayList<Explosion> explosions; // lista de explosões
     private Random random;
 
     // Imagens
     private Image rocketImage;
     private Image meteorImage;
+    private Image explosionImage;
     private Image backgroundGif;
 
     public Destroyer() {
@@ -34,10 +36,12 @@ public class Destroyer extends JPanel implements ActionListener, KeyListener {
         // Carregar imagens
         rocketImage = new ImageIcon("./assets/2.png").getImage();
         meteorImage = new ImageIcon("./assets/3.png").getImage();
+        explosionImage = new ImageIcon("./assets/4.png").getImage();
         backgroundGif = new ImageIcon("./assets/1.gif").getImage();
 
-        // Inicializa os meteoros
+        // Inicializa os meteoros e explosões
         meteors = new ArrayList<>();
+        explosions = new ArrayList<>();
         random = new Random();
 
         // Configura o botão de início
@@ -59,12 +63,20 @@ public class Destroyer extends JPanel implements ActionListener, KeyListener {
         gameTime = 0;
         gameOver = false;
         meteors.clear();
+        explosions.clear();
 
         // Configura o timer principal
         if (timer != null) {
             timer.stop();
         }
-        timer = new Timer(1000, e -> gameTime++); // Incrementa o tempo de jogo a cada segundo
+        timer = new Timer(1000, e -> {
+            gameTime++;
+            if (gameTime >= 40) { // Fim após 40 segundos
+                gameOver = true;
+                timer.stop();
+                moveTimer.stop();
+            }
+        });
         timer.start();
 
         // Cria meteoros a cada segundo
@@ -116,6 +128,11 @@ public class Destroyer extends JPanel implements ActionListener, KeyListener {
             g.drawImage(meteorImage, meteor.x, meteor.y, meteor.width, meteor.height, this);
         }
 
+        // Desenhar explosões
+        for (Explosion explosion : explosions) {
+            g.drawImage(explosionImage, explosion.x, explosion.y, rocketWidth, rocketHeight, this);
+        }
+
         // Desenhar o tempo de jogo
         int minutes = gameTime / 60;
         int seconds = gameTime % 60;
@@ -131,7 +148,8 @@ public class Destroyer extends JPanel implements ActionListener, KeyListener {
         if (gameOver) {
             g.setFont(new Font("Arial", Font.BOLD, 50));
             g.setColor(Color.RED);
-            g.drawString("Game Over", getWidth() / 2 - 150, getHeight() / 2);
+            String message = (lives > 0) ? "Você venceu" : "Game Over";
+            g.drawString(message, getWidth() / 2 - 150, getHeight() / 2);
             restartButton.setVisible(true);
         }
     }
@@ -148,6 +166,7 @@ public class Destroyer extends JPanel implements ActionListener, KeyListener {
                     iterator.remove();
                 } else if (meteor.intersects(rocketX, rocketY, rocketWidth, rocketHeight)) {
                     lives--;
+                    explosions.add(new Explosion(meteor.x, meteor.y)); // Adiciona explosão
                     iterator.remove();
                     if (lives <= 0) {
                         gameOver = true;
@@ -156,6 +175,9 @@ public class Destroyer extends JPanel implements ActionListener, KeyListener {
                     }
                 }
             }
+
+            // Atualiza a posição das explosões
+            explosions.removeIf(explosion -> System.currentTimeMillis() - explosion.startTime > 500);
 
             // Atualiza a posição do foguete
             updateRocketPosition();
@@ -213,6 +235,17 @@ public class Destroyer extends JPanel implements ActionListener, KeyListener {
             Rectangle meteorRect = new Rectangle(x, y, width, height);
             Rectangle rocketRect = new Rectangle(rx, ry, rwidth, rheight);
             return meteorRect.intersects(rocketRect);
+        }
+    }
+
+    private static class Explosion {
+        int x, y;
+        long startTime;
+
+        Explosion(int x, int y) {
+            this.x = x;
+            this.y = y;
+            this.startTime = System.currentTimeMillis();
         }
     }
 }
